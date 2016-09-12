@@ -1,2 +1,2 @@
-# some-ml-stuff
-Sort of a playground to implement things and learn TF
+# Learn
+Sort of a ML playground for me to implement things and learn TF
