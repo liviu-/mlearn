@@ -1,4 +1,8 @@
-"""A basic implementation of linear regression"""
+"""A basic implementation of linear regression
+
+Uses gradient descent for finding the minimum, and least squares
+as the loss function to be optimized.
+"""
 import numpy as np
 
 class LinearRegression():
@@ -17,7 +21,7 @@ class LinearRegression():
         for i in range(epochs):
             error = _mse(y, _activation(x, w))
             w = _train_epoch(x, y, w, lr)
-        print("Error: {}".format(error))
+        print("MSE: {}".format(error))
         print("Weights: {}".format(w))
         self.w = w
 
