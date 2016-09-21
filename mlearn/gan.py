@@ -8,10 +8,11 @@ import numpy as np
 from scipy.stats import norm
 import tensorflow as tf
 
-NUM_STEPS= 1000
+NUM_STEPS = 1000
 BATCH_SIZE = 12
 LOG_EVERY = 10
 HIDDEN_SIZE = 4
+LR = 0.01
 
 MU = 4
 SIGMA = 0.5
@@ -22,35 +23,25 @@ def get_data_distribution(n, mu=MU, sigma=SIGMA):
 def get_generator_distribution(n, limit):
     return np.linspace(-limit, limit, n) + np.random.random(n) * 0.01
 
-def linear(data, output_dim, scope='linear', stddev=1.0):
-    norm = tf.random_normal_initializer(stddev=stddev)
-    const = tf.constant_initializer(1.0)
-    with tf.variable_scope(scope):
-        w = tf.get_variable('w', (data.get_shape()[1], output_dim), initializer=norm)
-        b = tf.get_variable('b', (output_dim), initializer=const)
-        return tf.matmul(data, w) + b
-
+def linear(data, output_dim):
+    w = tf.Variable(tf.random_normal(shape=(int(data.get_shape()[1]), output_dim), name='w'))
+    b = tf.Variable(tf.ones(shape=(output_dim), name = 'b'))
+    return tf.matmul(data, w) + b
+ 
 def generator(data, h_dim):
-    h0 = tf.nn.softplus(linear(data, h_dim, 'g0'))
-    h1 = linear(h0, 1, 'g1')
+    h0 = tf.nn.softplus(linear(data, h_dim))
+    h1 = linear(h0, 1)
     return h1
 
 def discriminator(data, hidden_units):
-    h0 = tf.tanh(linear(data, hidden_units * 2, scope='d0'))
-    h1 = tf.tanh(linear(h0, hidden_units * 2, scope='d1'))
-    h2 = tf.tanh(linear(h1, hidden_units * 2, scope='d2'))
-    h3 = tf.sigmoid(linear(h2, 1, scope='d3'))
+    h0 = tf.tanh(linear(data, hidden_units * 2))
+    h1 = tf.tanh(linear(h0, hidden_units * 2))
+    h2 = tf.tanh(linear(h1, hidden_units * 2))
+    h3 = tf.sigmoid(linear(h2, 1))
     return h3
 
 def optimizer(loss, var_list):
-    initial_lr = 0.005
-    decay = 0.95
-    decay_steps = 150
-    batch = tf.Variable(0)
-    learning_rate = tf.train.exponential_decay(initial_lr, batch, decay_steps, decay, staircase=True)
-    optimizer  = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, global_step=batch, var_list = var_list)
-    return optimizer
-
+    return tf.train.GradientDescentOptimizer(LR).minimize(loss, var_list = var_list)
 
 with tf.variable_scope('G'):
     z = tf.placeholder(tf.float32, shape=(BATCH_SIZE, 1))
