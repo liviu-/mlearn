@@ -1,0 +1,93 @@
+"""
+Simple GAN 
+
+Simplified version of http://blog.aylien.com/introduction-generative-adversarial-networks-code-tensorflow/
+"""
+
+import numpy as np
+from scipy.stats import norm
+import tensorflow as tf
+
+NUM_STEPS= 1000
+BATCH_SIZE = 12
+LOG_EVERY = 10
+HIDDEN_SIZE = 4
+
+MU = 4
+SIGMA = 0.5
+
+def get_data_distribution(n, mu=MU, sigma=SIGMA):
+    return np.random.normal(mu, sigma, n)
+
+def get_generator_distribution(n, limit):
+    return np.linspace(-limit, limit, n) + np.random.random(n) * 0.01
+
+def linear(data, output_dim, scope='linear', stddev=1.0):
+    norm = tf.random_normal_initializer(stddev=stddev)
+    const = tf.constant_initializer(1.0)
+    with tf.variable_scope(scope):
+        w = tf.get_variable('w', (data.get_shape()[1], output_dim), initializer=norm)
+        b = tf.get_variable('b', (output_dim), initializer=const)
+        return tf.matmul(data, w) + b
+
+def generator(data, h_dim):
+    h0 = tf.nn.softplus(linear(data, h_dim, 'g0'))
+    h1 = linear(h0, 1, 'g1')
+    return h1
+
+def discriminator(data, hidden_units):
+    h0 = tf.tanh(linear(data, hidden_units * 2, scope='d0'))
+    h1 = tf.tanh(linear(h0, hidden_units * 2, scope='d1'))
+    h2 = tf.tanh(linear(h1, hidden_units * 2, scope='d2'))
+    h3 = tf.sigmoid(linear(h2, 1, scope='d3'))
+    return h3
+
+def optimizer(loss, var_list):
+    initial_lr = 0.005
+    decay = 0.95
+    decay_steps = 150
+    batch = tf.Variable(0)
+    learning_rate = tf.train.exponential_decay(initial_lr, batch, decay_steps, decay, staircase=True)
+    optimizer  = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, global_step=batch, var_list = var_list)
+    return optimizer
+
+
+with tf.variable_scope('G'):
+    z = tf.placeholder(tf.float32, shape=(BATCH_SIZE, 1))
+    G = generator(z, HIDDEN_SIZE)
+
+with tf.variable_scope('D') as scope:
+    x = tf.placeholder(tf.float32, shape=(BATCH_SIZE, 1))
+    D1 = discriminator(x, HIDDEN_SIZE)
+    scope.reuse_variables()
+    D2 = discriminator(G, HIDDEN_SIZE)
+
+loss_d = tf.reduce_mean(-tf.log(D1) - tf.log(1 - D2))
+loss_g = tf.reduce_mean(-tf.log(D2))
+
+vars = tf.trainable_variables()
+d_params = [v for v in vars if v.name.startswith('D/')]
+g_params = [v for v in vars if v.name.startswith('G/')]
+
+opt_d = optimizer(loss_d, d_params)
+opt_g = optimizer(loss_g, g_params)
+
+with tf.Session() as session:
+    tf.initialize_all_variables().run()
+
+    for step in range(NUM_STEPS):
+        # update discriminator
+        x_samples = get_data_distribution(BATCH_SIZE)
+        z_samples = get_generator_distribution(BATCH_SIZE, 8)
+        step_loss_d, _ = session.run([loss_d, opt_d], {
+            x: np.reshape(x_samples, (BATCH_SIZE, 1)),
+            z: np.reshape(z_samples, (BATCH_SIZE, 1))
+        })
+
+        # update generator
+        z_samples = get_generator_distribution(BATCH_SIZE, 8)
+        step_loss_g, _ = session.run([loss_g, opt_g], {
+            z: np.reshape(z_samples, (BATCH_SIZE, 1))
+        })
+
+        print('{}. Discriminator: {}\t Generator: {}'.format(step, step_loss_d, step_loss_g))
