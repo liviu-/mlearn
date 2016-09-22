@@ -5,23 +5,17 @@ Simplified version of http://blog.aylien.com/introduction-generative-adversarial
 """
 
 import numpy as np
-from scipy.stats import norm
 import tensorflow as tf
 
 NUM_STEPS = 1000
 BATCH_SIZE = 12
-LOG_EVERY = 10
 HIDDEN_SIZE = 4
 LR = 0.01
-
 MU = 4
 SIGMA = 0.5
 
-def get_data_distribution(n, mu=MU, sigma=SIGMA):
-    return np.random.normal(mu, sigma, n)
-
-def get_generator_distribution(n, limit):
-    return np.linspace(-limit, limit, n) + np.random.random(n) * 0.01
+get_data_distribution = lambda n: np.random.normal(mu, sigma, n)
+get_generator_distribution = lambda n, limit: np.linspace(-limit, limit, n) + np.random.random(n) * 0.01
 
 def linear(data, output_dim):
     w = tf.Variable(tf.random_normal(shape=(int(data.get_shape()[1]), output_dim), name='w'))
@@ -41,7 +35,7 @@ def discriminator(data, hidden_units):
     return h3
 
 def optimizer(loss, var_list):
-    return tf.train.GradientDescentOptimizer(LR).minimize(loss, var_list = var_list)
+    return tf.train.GradientDescentOptimizer(LR).minimize(loss, var_list=var_list)
 
 with tf.variable_scope('G'):
     z = tf.placeholder(tf.float32, shape=(BATCH_SIZE, 1))
